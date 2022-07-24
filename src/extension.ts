@@ -2,17 +2,15 @@ import * as vscode from 'vscode';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "protobuf-helper" is now active!');
-	function format(text: string) {
-		let result = "";
-		for (var i = 0; i < text.length; i++) {
+	function lastNonEmptyChar(text: string, idx: number) {
+		for (var i = idx-1; i >= 0; i--) {
 			let char0 = text.charAt(i);
-			let char1 = (i+1 < text.length) ? text.charAt(i+1) : '\0';
-			result += char0;
-			if (char1 === '{' && !(char0=== ' ' || char0=== '\t' ||char0=== '\n' ))
-				result+=' ';
-
+			if (char0=== ' ' || char0=== '\t' ||char0=== '\n' ) {
+				continue;
+			}
+			return char0;
 		}
-		return result;
+		return '\0';
 	}
 	function resetFieldID(text: string) {
 		let result = "";
@@ -103,16 +101,13 @@ export function activate(context: vscode.ExtensionContext) {
 						if (!id_begin && char0 === '=' && last_word2 !== "option") {
 							id_begin = true;
 						} else if (id_begin) {
-							if (char0 === '[') {
+							if (char0 === '[' && !id_set) {
 								result += " " + next_id + " ";
 								next_id++;
 
 								id_option_begin = true;
 								id_set = true;
-							} else if (char0 === ']') {
-								result += char0;
-								id_option_begin = false;
-							} else if (char0 === ';') {
+							} else if (char0 === ';' && (!id_option_begin || lastNonEmptyChar(text,i) === ']')) {
 								if (!id_set) {
 									result += " " + next_id;
 									next_id++;
@@ -143,7 +138,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	let disposable = vscode.commands.registerTextEditorCommand('extension.resetFieldID', (editor, editorEdit) => {
 		let fullText = editor.document.getText();
-		let newText = resetFieldID(format(fullText));
+		let newText = resetFieldID(fullText);
 
 		const fullRange = new vscode.Range(
 			editor.document.positionAt(0),
